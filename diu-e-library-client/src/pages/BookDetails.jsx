@@ -1,6 +1,6 @@
 import axios from 'axios';
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import Modal from '../components/Modal';
 import AuthContext from '../Context/AuthContext';
 
@@ -8,7 +8,7 @@ const BookDetails = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { id } = useParams();
     const [books, setBook] = useState(null);
-  
+    const navigate = useNavigate()
 
     const { user } = useContext(AuthContext);
 
@@ -30,7 +30,7 @@ const BookDetails = () => {
     return (
         <div>
 
-           
+
             <div className='container mx-auto min-h-[300px] my-20 flex lg:flex-row flex-col items-center lg:items-start justify-center gap-6 pt-8 px-4'>
 
                 {/*  BOOK IMAGE */}
@@ -68,16 +68,16 @@ const BookDetails = () => {
                             Your Details
                         </h3>
 
-                            <>
-                                <p className='font-medium text-sm lg:text-base my-1'>
-                                    Name: {user?.displayName}
-                                </p>
+                        <>
+                            <p className='font-medium text-sm lg:text-base my-1'>
+                                Name: {user?.displayName}
+                            </p>
 
-                                <p className='font-medium text-sm lg:text-base'>
-                                    Email: {user?.email}
-                                </p>
-                            </>
-                      
+                            <p className='font-medium text-sm lg:text-base'>
+                                Email: {user?.email}
+                            </p>
+                        </>
+
 
                     </div>
 
@@ -90,6 +90,7 @@ const BookDetails = () => {
                         disabled={books?.quantity === 0}
                     >
                         {books?.quantity === 0 ? 'Not Available' : 'Borrow Now'}
+                       
                     </button>
 
                     {/* 📖 DESCRIPTION */}
