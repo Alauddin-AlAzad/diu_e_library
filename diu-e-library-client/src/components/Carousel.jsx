@@ -44,7 +44,7 @@ export default function Carousel() {
           text="Read Anytime, Anywhere"
           subtext="24/7 access to books, journals, and research materials."
          button={[
-            {label:'Browse Collection', to:'/allbooks'}
+            {label:'Browse Collection', to:'/allbook'}
           ]}
         />
       </SwiperSlide>

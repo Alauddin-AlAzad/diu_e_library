@@ -42,20 +42,6 @@ async function run() {
     const bookCollection = db.collection('books')
     const borrowCollection = db.collection('borrow')
 
-    // seed books.json if books collection is empty
-    const bookCount = await bookCollection.countDocuments()
-    if (bookCount === 0) {
-      const seedPath = path.join(__dirname, 'books.json')
-      if (fs.existsSync(seedPath)) {
-        const seedBooks = JSON.parse(fs.readFileSync(seedPath, 'utf8'))
-        if (Array.isArray(seedBooks) && seedBooks.length) {
-          const normalizedBooks = seedBooks.map(({ _id, ...book }) => book)
-          await bookCollection.insertMany(normalizedBooks)
-          console.log(`Seeded ${normalizedBooks.length} books`)
-        }
-      }
-    }
-
     // save book data in db
     app.post('/add-book', async (req, res) => {
       const bookData = req.body
@@ -63,34 +49,19 @@ async function run() {
       res.send(result)
     })
 
-    // save a bid  borrow data in db
-    app.post('/borrow-book', async(req,res)=>{
-      const borrowdata=req.body
-      const result=await borrowCollection.insertOne(borrowdata)
-      console.log(result)
-      res.send(result)
-    })
+
     // old frontend alias
-    app.post('/add-job', async (req, res) => {
-      const bookData = req.body
-      const result = await bookCollection.insertOne(bookData)
-      res.send(result)
-    })
+    // app.post('/add-job', async (req, res) => {
+    //   const bookData = req.body
+    //   const result = await bookCollection.insertOne(bookData)
+    //   res.send(result)
+    // })
 
     // get all books from db
     app.get('/books', async (req, res) => {
       const result = await bookCollection.find().toArray()
       res.send(result)
     })
-
-    // get books added by a specific user
-    // app.get('/books/:email', async (req, res) => {
-    //   const email = req.params.email
-    //   const query = { 'owner.email': email }
-    //   const result = await bookCollection.find(query).toArray()
-    //   res.send(result)
-    // })
-
     // get a single book data from db
     app.get('/book/:id', async (req, res) => {
       const id = req.params.id
@@ -99,26 +70,63 @@ async function run() {
       res.send(result)
     })
 
-    // update book from db
-    // app.put('/update-book/:id', async (req, res) => {
-    //   const id = req.params.id
-    //   const bookData = req.body
-    //   const updated = {
-    //     $set: bookData,
-    //   }
-    //   const query = { _id: new ObjectId(id) }
-    //   const options = { upsert: true }
-    //   const result = await bookCollection.updateOne(query, updated, options)
-    //   res.send(result)
-    // })
+    // save a   borrow data in db
+    app.post('/borrow-book', async (req, res) => {
+      const borrowdata = req.body
+      const query = { email: borrowdata.email, bookId: borrowdata.bookId }
+      const alreadyBorrow = await borrowCollection.findOne(query)
 
-    // // delete book from db
-    // app.delete('/book/:id', async (req, res) => {
-    //   const id = req.params.id
-    //   const query = { _id: new ObjectId(id) }
-    //   const result = await bookCollection.deleteOne(query)
-    //   res.send(result)
-    // })
+      if (alreadyBorrow) return res.status(400).send("You Already borrow this book")
+      const result = await borrowCollection.insertOne(borrowdata)
+
+      //  increse borrow book in bookCollection
+
+      const filter = { _id: new ObjectId(borrowdata.bookId) }
+      const update = {
+
+        $inc: { quantity: -1 },
+
+      }
+      const updateBook = await bookCollection.updateOne(filter, update)
+
+
+      res.send(result)
+
+    })
+
+    // get all bids data in db
+    app.get('/my-borrow-book/:email', async (req, res) => {
+      const email = req.params.email
+      const query = { userEmail: email }
+      const result = await borrowCollection.find(query).toArray()
+      res.send(result)
+
+
+    })
+
+
+    // return the book
+    app.delete('/return-book/:id', async (req, res) => {
+      const borrowId = req.params.id
+      const bookId = req.query.bookId
+      const query = { _id: new ObjectId(borrowId) }
+      const result = await borrowCollection.deleteOne(query)
+
+      //update quantity
+      const filter={_id : new ObjectId(bookId)}
+
+      const update={
+        $inc: {
+          quantity:1
+        }
+      }
+      const updateBook = await bookCollection.updateOne(filter, update)
+      res.send(result,updateBook)
+    })
+
+  
+
+
 
     // save borrow data in db
     // app.post('/add-borrow', async (req, res) => {
@@ -128,14 +136,14 @@ async function run() {
     //     borrowData.returnDate = new Date(borrowData.returnDate)
     //   }
 
-      // // if a user already borrowed this book
-      // const query = { email: borrowData.email, bookId: borrowData.bookId }
-      // const alreadyExist = await borrowCollection.findOne(query)
-      // if (alreadyExist) {
-      //   return res.status(400).send('You already borrowed this book')
-      // }
+    // // if a user already borrowed this book
+    // const query = { email: borrowData.email, bookId: borrowData.bookId }
+    // const alreadyExist = await borrowCollection.findOne(query)
+    // if (alreadyExist) {
+    //   return res.status(400).send('You already borrowed this book')
+    // }
 
-      // const result = await borrowCollection.insertOne(borrowData)
+    // const result = await borrowCollection.insertOne(borrowData)
 
     //   // here updated borrow_count
     //   const filter = { _id: new ObjectId(borrowData.bookId) }

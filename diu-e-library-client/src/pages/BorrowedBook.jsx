@@ -7,7 +7,7 @@ const BorrowedBook = () => {
             <h3 className="md:text-2xl text-base font-semibold mb-5 ">My Borrowed Books</h3>
             <div className=''>
                 <BorrowBookcard></BorrowBookcard>
-                <BorrowBookcard></BorrowBookcard>
+                
 
             </div>
         </div>

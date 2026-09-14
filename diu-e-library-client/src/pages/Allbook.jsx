@@ -40,6 +40,15 @@ const Allbook = () => {
       setLoading(false);
     }
   }
+  if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-[300px]">
+                <div className="relative flex items-center justify-center">
+                    <div className="w-16 h-16 border-4 border-[#1E4E8C]/20 border-t-[#1E4E8C] rounded-full animate-spin"></div>
+                </div>
+            </div>
+        );
+    }
 
   return (
     <div >

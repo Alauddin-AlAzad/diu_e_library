@@ -5,6 +5,9 @@ import AuthContext from '../Context/AuthContext';
 import { useNavigate } from 'react-router';
 
 const Modal = ({ books, isOpen, onClose }) => {
+
+    const { _id } = books || {}
+    console.log(_id)
     const { user, loading } = useContext(AuthContext);
     const navigate = useNavigate()
 
@@ -18,18 +21,25 @@ const Modal = ({ books, isOpen, onClose }) => {
         const userName = form.userName.value
         const userEmail = form.userEmail.value
         const returnDate = form.returnDate.value
+        const bookId = _id
+        const image = books?.imgUrl;
+        const category = books?.category;
 
-        const borrowData = { title, userName, userEmail, returnDate }
+        const borrowData = { title, userName, userEmail, returnDate, bookId,image,category }
         try {
             // make a post request
-            await axios.post(`${import.meta.env.VITE_API_URL}/borrow-book`, borrowData)
 
+            if (books?.owner?.email === user?.email) {
+                toast.error("You Cant select your own book")
+                return;
+            }
+            await axios.post(`${import.meta.env.VITE_API_URL}/borrow-book`, borrowData)
             //from reset
             form.reset()
             toast.success('Successfully borrowed book ');
         } catch (err) {
             console.log(err)
-            toast.error(err.message)
+            toast.error(err?.response?.data)
         }
 
 

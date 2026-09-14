@@ -45,10 +45,13 @@ const TabCategories = () => {
 
   const categories = ["Novel", "Thriller", "History", "Science"];
 
+  // 🔹 আপনার দেওয়া Modern Pulse Spinner Loading UI
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <span className="loading loading-spinner loading-lg text-[#1E4E8C]"></span>
+      <div className="flex justify-center items-center min-h-[300px]">
+        <div className="relative flex items-center justify-center">
+          <div className="w-16 h-16 border-4 border-[#1E4E8C]/20 border-t-[#1E4E8C] rounded-full animate-spin"></div>
+        </div>
       </div>
     );
   }
