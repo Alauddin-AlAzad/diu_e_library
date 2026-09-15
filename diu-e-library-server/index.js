@@ -5,11 +5,11 @@ const fs = require('fs')
 const path = require('path')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 require('dotenv').config()
-
+const jwt = require('jsonwebtoken')
 const port = process.env.PORT || 5000
 const app = express()
 const corsOptions = {
-  origin: ['http://localhost:5173'],
+  origin: ['http://localhost:5173','http://localhost:5174'],
   credentials: true,
   optionalSuccessStatus: 200,
 }
@@ -18,7 +18,6 @@ app.use(cors(corsOptions))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// ISP DNS problem hole Atlas SRV lookup fail kore — tai custom DNS
 const dnsServers = (process.env.DNS_SERVERS || '8.8.8.8,1.1.1.1')
   .split(',')
   .map(server => server.trim())
@@ -42,6 +41,27 @@ async function run() {
     const bookCollection = db.collection('books')
     const borrowCollection = db.collection('borrow')
 
+    // generate jwt
+    app.post('/jwt', async (req, res) => {
+      // create token
+      const email = req.body
+      const token = jwt.sign(email, process.env.SECRET_KEY, { expiresIn: '365d' })
+      console.log(token)
+      res.cookie('token', token, {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      }).send({succes : true})
+    })
+
+    // logout || clear cookie rom browser
+    app.get('/logout', async (req,res)=>{
+      res.clearCookie('token',{
+        secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      maxAge: 0,
+      })
+      .send({success : true})
+    })
     // save book data in db
     app.post('/add-book', async (req, res) => {
       const bookData = req.body
@@ -49,13 +69,6 @@ async function run() {
       res.send(result)
     })
 
-
-    // old frontend alias
-    // app.post('/add-job', async (req, res) => {
-    //   const bookData = req.body
-    //   const result = await bookCollection.insertOne(bookData)
-    //   res.send(result)
-    // })
 
     // get all books from db
     app.get('/books', async (req, res) => {
@@ -94,7 +107,7 @@ async function run() {
 
     })
 
-    // get all bids data in db
+    // get all borrow  data in db
     app.get('/my-borrow-book/:email', async (req, res) => {
       const email = req.params.email
       const query = { userEmail: email }
@@ -113,90 +126,37 @@ async function run() {
       const result = await borrowCollection.deleteOne(query)
 
       //update quantity
-      const filter={_id : new ObjectId(bookId)}
+      const filter = { _id: new ObjectId(bookId) }
 
-      const update={
+      const update = {
         $inc: {
-          quantity:1
+          quantity: 1
         }
       }
       const updateBook = await bookCollection.updateOne(filter, update)
-      res.send(result,updateBook)
+      res.send(result, updateBook)
     })
 
-  
+
+    // here work for search, filter and sort
+
+    app.get('/all-books', async (req, res) => {
+      const filter = req.query.filter
+      const search = req.query.search
+      console.log(search)
+      let query = {
+        bookName: {
+          $regex: search, $options: 'i'
+        }
+      }
+      if (filter && filter !== 'Filter by Category') query.category = filter
+      const result = await bookCollection.find(query).toArray()
+
+      res.send(result)
+    })
 
 
 
-    // save borrow data in db
-    // app.post('/add-borrow', async (req, res) => {
-    //   const borrowData = req.body
-
-    //   if (borrowData.returnDate) {
-    //     borrowData.returnDate = new Date(borrowData.returnDate)
-    //   }
-
-    // // if a user already borrowed this book
-    // const query = { email: borrowData.email, bookId: borrowData.bookId }
-    // const alreadyExist = await borrowCollection.findOne(query)
-    // if (alreadyExist) {
-    //   return res.status(400).send('You already borrowed this book')
-    // }
-
-    // const result = await borrowCollection.insertOne(borrowData)
-
-    //   // here updated borrow_count
-    //   const filter = { _id: new ObjectId(borrowData.bookId) }
-    //   const updated = {
-    //     $inc: { borrow_count: 1, quantity: -1 },
-    //   }
-    //   await bookCollection.updateOne(filter, updated)
-
-    //   res.send(result)
-    // })
-
-    // // // display borrow data of a specific user
-    // // app.get('/borrows/:email', async (req, res) => {
-    // //   const email = req.params.email
-    // //   const query = { email }
-    // //   const result = await borrowCollection.find(query).toArray()
-    // //   res.send(result)
-    // // })
-
-    // // here update the status (borrowed / returned)
-    // // app.patch('/borrow-status-update/:id', async (req, res) => {
-    // //   const id = req.params.id
-    // //   const { cuStatus } = req.body
-
-    // //   const filter = { _id: new ObjectId(id) }
-    // //   const updated = {
-    // //     $set: { status: cuStatus },
-    // //   }
-    // //   const result = await borrowCollection.updateOne(filter, updated)
-    // //   res.send(result)
-    // // })
-
-    // // here work for search, filter and sort
-    // app.get('/all-books', async (req, res) => {
-    //   const { filter, search, sort } = req.query
-
-    //   let query = {}
-
-    //   if (search) {
-    //     query.title = { $regex: search, $options: 'i' }
-    //   }
-
-    //   if (filter) {
-    //     query.category = filter
-    //   }
-
-    //   let options = {}
-    //   if (sort === 'asc') options.sort = { title: 1 }
-    //   if (sort === 'desc') options.sort = { title: -1 }
-
-    //   const result = await bookCollection.find(query, options).toArray()
-    //   res.send(result)
-    // })
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })

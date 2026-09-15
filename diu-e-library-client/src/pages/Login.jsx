@@ -4,6 +4,7 @@ import bg from '../assets/library-bg.jpg'
 import { Link, useNavigate } from 'react-router';
 import AuthContext from '../Context/AuthContext';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 const Login = () => {
     const { signInUser, signInWithGoogle } = useContext(AuthContext)
     const navigate=useNavigate()
@@ -24,19 +25,19 @@ const Login = () => {
               toast.error(err.message)
             })
     }
-    const handleSignWithGoogle = () => {
-        signInWithGoogle()
-            .then(result => {
-                toast.success('Your Login successful!', {
-                    className: 'bg-green-500 text-white font-medium px-4 py-2 rounded-lg shadow-lg',
-                });
-                navigate('/')
-
-            })
-            .catch(err => {
-            toast.error(err.message)
-            })
-    }
+    const handleSignWithGoogle = async () => {
+  try {
+   await signInWithGoogle();
+    
+    toast.success('Your Login successful!', {
+      className: 'bg-green-500 text-white font-medium px-4 py-2 rounded-lg shadow-lg',
+    });
+    
+    navigate('/');
+  } catch (err) {
+    toast.error(err.message);
+  }
+};
     return (
 
         <div>
