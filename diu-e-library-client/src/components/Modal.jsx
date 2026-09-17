@@ -16,6 +16,7 @@ const Modal = ({ books, isOpen, onClose }) => {
     const handleBorrow = async (e) => {
 
         e.preventDefault()
+        
         const form = e.target
         const title = form.bookName.value
         const userName = form.userName.value
@@ -25,7 +26,7 @@ const Modal = ({ books, isOpen, onClose }) => {
         const image = books?.imgUrl;
         const category = books?.category;
 
-        const borrowData = { title, userName, userEmail, returnDate, bookId,image,category }
+        const borrowData = { title, userName, email: userEmail, returnDate, bookId,image,category }
         try {
             // make a post request
 

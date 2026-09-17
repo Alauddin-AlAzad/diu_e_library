@@ -110,7 +110,7 @@ async function run() {
     // get all borrow  data in db
     app.get('/my-borrow-book/:email', async (req, res) => {
       const email = req.params.email
-      const query = { userEmail: email }
+      const query = { email: email }
       const result = await borrowCollection.find(query).toArray()
       res.send(result)
 
