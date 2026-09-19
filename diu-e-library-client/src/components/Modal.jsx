@@ -3,6 +3,7 @@ import axios from 'axios'
 import toast from 'react-hot-toast';
 import AuthContext from '../Context/AuthContext';
 import { useNavigate } from 'react-router';
+import useAxiosSecure from '../hooks/useAxiosSecure';
 
 const Modal = ({ books, isOpen, onClose }) => {
 
@@ -34,7 +35,7 @@ const Modal = ({ books, isOpen, onClose }) => {
                 toast.error("You Cant select your own book")
                 return;
             }
-            await axios.post(`${import.meta.env.VITE_API_URL}/borrow-book`, borrowData)
+            await useAxiosSecure.post(`${import.meta.env.VITE_API_URL}/borrow-book`, borrowData)
             //from reset
             form.reset()
             toast.success('Successfully borrowed book ');

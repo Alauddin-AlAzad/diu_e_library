@@ -2,8 +2,10 @@ import React, { useContext, useEffect, useState } from 'react';
 import AuthContext from '../Context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import useAxiosSecure from '../hooks/useAxiosSecure';
 
 const BorrowBookcard = () => {
+    const axiosSecure = useAxiosSecure()
     const { user } = useContext(AuthContext);
     const [books, setBooks] = useState([]);
     
@@ -18,8 +20,8 @@ const BorrowBookcard = () => {
     const fetchAllBooks = async () => {
         try {
             setLoading(true); 
-            const { data } = await axios.get(
-                `${import.meta.env.VITE_API_URL}/my-borrow-book/${user?.email}`
+            const { data } = await axiosSecure.get(
+                `/my-borrow-book/${user?.email}`
             );
             setBooks(data);
         } catch (error) {

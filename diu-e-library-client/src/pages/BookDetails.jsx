@@ -3,8 +3,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import Modal from '../components/Modal';
 import AuthContext from '../Context/AuthContext';
+import useAxiosSecure from '../hooks/useAxiosSecure';
+
+
 
 const BookDetails = () => {
+    const axiosSecure =useAxiosSecure()
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { id } = useParams();
     const [books, setBook] = useState(null);
@@ -18,7 +22,7 @@ const BookDetails = () => {
 
     const fetchBookDetails = async () => {
         try {
-            const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/book/${id}`);
+            const { data } = await axiosSecure.get(`/book/${id}`);
             setBook(data);
         } catch (error) {
             console.error('Failed to fetch book details:', error);

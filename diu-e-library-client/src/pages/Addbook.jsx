@@ -2,6 +2,7 @@ import React, { useContext, useRef, useState } from 'react';
 import { MdOutlineAddBox } from "react-icons/md";
 import AuthContext from '../Context/AuthContext';
 import { toast } from 'react-hot-toast'
+import useAxiosSecure from '../hooks/useAxiosSecure';
 const Addbook = () => {
     const { user } = useContext(AuthContext)
     const formRef = useRef(null);
@@ -62,64 +63,57 @@ const Addbook = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
 
-        const form = formRef.current;
-        const email = user?.email;
-        const bookName = form.bookName.value;
-        const authorName = form.authorName.value;
-        const description = form.description.value;
-        const quantity = form.quantity.value;
-        const rating = form.rating.value;
-        const content = form.content.value;
-        const category = form.category.value;
 
-        setIsSubmitting(true);
+const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        try {
-            const formData = {
-                bookName,
-                authorName,
-                description,
-                quantity,
-                rating,
-                content,
-                category,
-                imgUrl: imageData,
-                owner: {
-                    email,
-                },
-            };
+    const form = formRef.current;
+    const email = user?.email;
+    const bookName = form.bookName.value;
+    const authorName = form.authorName.value;
+    const description = form.description.value;
+    const quantity = parseInt(form.quantity.value); 
+    const rating = parseFloat(form.rating.value);   
+    const content = form.content.value;
+    const category = form.category.value;
 
-            const response = await fetch('http://localhost:5000/add-book', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-            });
+    setIsSubmitting(true);
 
-            if (response.ok) {
-                const responseData = await response.json();
-                form.reset();
-                setImagePreview(null);
-                setImageData('');
-                toast.success(responseData?.message || 'Book added successfully.');
-            } else {
-                throw new Error('Server rejected the request. Data was not saved.');
-            }
-        } catch (err) {
-            console.error('Add book failed:', err);
-            toast.error(
-                err?.response?.data?.message ||
-                err?.message ||
-                'Server offline! Data was not saved.'
-            );
-        } finally {
-            setIsSubmitting(false);
+    try {
+        const formData = {
+            bookName,
+            authorName,
+            description,
+            quantity,
+            rating,
+            content,
+            category,
+            imgUrl: imageData,
+            owner: {
+                email,
+            },
+        };
+
+        const { data } = await useAxiosSecure.post('/add-book', formData);
+
+        if (data?.insertedId) {
+            form.reset();
+            setImagePreview(null);
+            setImageData('');
+            toast.success(data?.message || 'Book added successfully.');
         }
-    };
+    } catch (err) {
+        console.error('Add book failed:', err);
+        toast.error(
+            err?.response?.data?.message ||
+            err?.message ||
+            'Server offline! Data was not saved.'
+        );
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
     return (
         <form ref={formRef} onSubmit={handleSubmit} className='container mx-auto px-2 my-5 lg:my-8'>
