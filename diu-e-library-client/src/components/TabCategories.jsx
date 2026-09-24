@@ -1,51 +1,27 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { Tab, TabList, Tabs, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
 import BookCard from './BookCard';
 import useAxiosSecure from '../hooks/useAxiosSecure';
+import { useQuery } from '@tanstack/react-query';
 
 const TabCategories = () => {
-  const axiosSecure = useAxiosSecure(); 
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const axiosSecure = useAxiosSecure();
 
-  const fetchBooks = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
 
+  const { data: books = [], isLoading, isError, error } = useQuery({
+    queryKey: ['books'],
+    queryFn: async () => {
+      const { data } = await axiosSecure.get('/books');
+      return data;
+    },
+   
+  });
   
-      const res = await axiosSecure.get('/books');
-
-      if (res.status === 200) {
-        setBooks(res.data || []);
-      } else {
-        throw new Error('Failed to load books');
-      }
-    } catch (err) {
-      console.error('Failed to fetch books:', err);
-      setBooks([]);
-      setError('Server Disconnected. Please make sure the backend is running.');
-    } finally {
-      setLoading(false);
-    }
-  }, [axiosSecure]);
-
-  useEffect(() => {
-    fetchBooks();
-
-    const handleFocus = () => {
-      fetchBooks();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchBooks]);
 
   const categories = ["Novel", "Thriller", "History", "Science"];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <div className="relative flex items-center justify-center">
@@ -55,17 +31,16 @@ const TabCategories = () => {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="flex justify-center items-center min-h-[60vh] text-red-500 font-medium">
-        {error}
+        {error?.message || 'Server Disconnected. Please make sure backend is running.'}
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-12 bg-[#F8FAFF] min-h-screen">
-      {/* Title */}
       <h2 className="text-2xl sm:text-3xl font-bold text-center text-[#1E4E8C]">
         Browse Books By Categories
       </h2>
@@ -75,7 +50,6 @@ const TabCategories = () => {
       </p>
 
       <Tabs>
-        {/* TAB LIST */}
         <div className="flex justify-center mb-8">
           <TabList className="flex flex-wrap gap-3 bg-[#F0F6FF] p-2 rounded-xl border border-[#2F6FB2]/20">
             {categories.map((cat) => (
@@ -91,7 +65,6 @@ const TabCategories = () => {
           </TabList>
         </div>
 
-        {/* PANELS */}
         {categories.map((cat) => {
           const filteredBooks = books.filter(book => book.category === cat);
 
