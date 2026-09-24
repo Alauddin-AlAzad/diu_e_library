@@ -1,14 +1,14 @@
 const express = require('express')
 const cors = require('cors')
 const dns = require('dns')
-const fs = require('fs')
-const path = require('path')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 require('dotenv').config()
 const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
+
 const port = process.env.PORT || 5000
 const app = express()
-const cookieParser = require('cookie-parser')
+
 const corsOptions = {
   origin: [
     'http://localhost:5173',
@@ -33,7 +33,7 @@ const dnsServers = (process.env.DNS_SERVERS || '8.8.8.8,1.1.1.1')
 if (dnsServers.length) dns.setServers(dnsServers)
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w0juy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -42,163 +42,178 @@ const client = new MongoClient(uri, {
   },
 })
 
-// veriytoken
-const verifyToken = (req, res, next) => {
+// কুকি অপশন: লোকালহোস্ট ও লাইভ উভয় জায়গাতেই পারফেক্ট কাজ করবে
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+}
 
-  console.log("Hello I am a middle ware ")
+// Global Connection Cache for Vercel
+let dbClient
+let db
+
+async function getDB() {
+  if (!dbClient) {
+    dbClient = await client.connect()
+    db = dbClient.db('library-db')
+  }
+  return db
+}
+
+// verifyToken Middleware
+const verifyToken = (req, res, next) => {
   const token = req.cookies?.token
-  if (!token) return res.status(401).send({ message: " unauthorized acces" })
+  if (!token) return res.status(401).send({ message: "unauthorized access" })
+
   jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
     if (err) {
-      return res.status(401).send({ message: " unauthorized acces" })
+      return res.status(401).send({ message: "unauthorized access" })
     }
-
     req.user = decoded
     next()
   })
-
 }
 
-async function run() {
-  try {
-    const db = client.db('library-db')
-    const bookCollection = db.collection('books')
-    const borrowCollection = db.collection('borrow')
-
-    // generate jwt
-    app.post('/jwt', async (req, res) => {
-      // create token
-      const email = req.body
-      const token = jwt.sign(email, process.env.SECRET_KEY, { expiresIn: '365d' })
-      console.log(token)
-      res.cookie('token', token, {
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-      }).send({ succes: true })
-    })
-
-    // logout || clear cookie rom browser
-    app.get('/logout', async (req, res) => {
-      res.clearCookie('token', {
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-        maxAge: 0,
-      })
-        .send({ success: true })
-    })
-    // save book data in db
-    app.post('/add-book', async (req, res) => {
-      const bookData = req.body
-      const result = await bookCollection.insertOne(bookData)
-      res.send(result)
-    })
-
-
-    // get all books from db
-    app.get('/books', async (req, res) => {
-      const result = await bookCollection.find().toArray()
-      res.send(result)
-    })
-    // get a single book data from db
-    app.get('/book/:id', async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await bookCollection.findOne(query)
-      res.send(result)
-    })
-
-    // save a   borrow data in db
-    app.post('/borrow-book', async (req, res) => {
-      const borrowdata = req.body
-      const query = { email: borrowdata.email, bookId: borrowdata.bookId }
-      const alreadyBorrow = await borrowCollection.findOne(query)
-
-      if (alreadyBorrow) return res.status(400).send("You Already borrow this book")
-      const result = await borrowCollection.insertOne(borrowdata)
-
-      //  increse borrow book in bookCollection
-
-      const filter = { _id: new ObjectId(borrowdata.bookId) }
-      const update = {
-
-        $inc: { quantity: -1 },
-
-      }
-      const updateBook = await bookCollection.updateOne(filter, update)
-
-
-      res.send(result)
-
-    })
-
-    // get all borrow  data in db
-    app.get('/my-borrow-book/:email', verifyToken, async (req, res) => {
-      const decodedEmail = req?.user?.email
-      const email = req.params.email
-      
-
-      console.log('email from token ---> ', decodedEmail)
-      console.log('email from params ---> ', email)
-      if (decodedEmail !== email) return res.status(401).send({ message: " unauthorized acces" })
-        const query = { email: email }
-      const result = await borrowCollection.find(query).toArray()
-      res.send(result)
-
-
-    })
-
-
-    // return the book
-    app.delete('/return-book/:id', async (req, res) => {
-      const borrowId = req.params.id
-      const bookId = req.query.bookId
-      const query = { _id: new ObjectId(borrowId) }
-      const result = await borrowCollection.deleteOne(query)
-
-      //update quantity
-      const filter = { _id: new ObjectId(bookId) }
-
-      const update = {
-        $inc: {
-          quantity: 1
-        }
-      }
-      const updateBook = await bookCollection.updateOne(filter, update)
-      res.send(result, updateBook)
-    })
-
-
-    // here work for search, filter and sort
-
-    app.get('/all-books', async (req, res) => {
-      const filter = req.query.filter
-      const search = req.query.search
-      console.log(search)
-      let query = {
-        bookName: {
-          $regex: search, $options: 'i'
-        }
-      }
-      if (filter && filter !== 'Filter by Category') query.category = filter
-      const result = await bookCollection.find(query).toArray()
-
-      res.send(result)
-    })
-
-
-
-
-    // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 })
-    console.log('Pinged your deployment. You successfully connected to MongoDB!')
-  } finally {
-    // Ensures that the client will close when you finish/error
-  }
-}
-run().catch(console.dir)
-
+// Base Route
 app.get('/', (req, res) => {
   res.send('Hello from Library Server....')
 })
 
+// Generate JWT
+app.post('/jwt', async (req, res) => {
+  try {
+    const email = req.body
+    const token = jwt.sign(email, process.env.SECRET_KEY, { expiresIn: '365d' })
+    res.cookie('token', token, cookieOptions).send({ success: true })
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Logout
+app.get('/logout', async (req, res) => {
+  try {
+    res.clearCookie('token', { ...cookieOptions, maxAge: 0 }).send({ success: true })
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Get all books
+app.get('/books', async (req, res) => {
+  try {
+    const database = await getDB()
+    const result = await database.collection('books').find().toArray()
+    res.send(result)
+  } catch (error) {
+    console.error("Error fetching books:", error)
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Search, filter and sort
+app.get('/all-books', async (req, res) => {
+  try {
+    const database = await getDB()
+    const filter = req.query.filter
+    const search = req.query.search || ''
+
+    let query = {
+      bookName: {
+        $regex: search,$options: 'i'
+      }
+    }
+    if (filter && filter !== 'Filter by Category') query.category = filter
+    const result = await database.collection('books').find(query).toArray()
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Single book data
+app.get('/book/:id', async (req, res) => {
+  try {
+    const database = await getDB()
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const result = await database.collection('books').findOne(query)
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Add book
+app.post('/add-book', async (req, res) => {
+  try {
+    const database = await getDB()
+    const bookData = req.body
+    const result = await database.collection('books').insertOne(bookData)
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Borrow book
+app.post('/borrow-book', async (req, res) => {
+  try {
+    const database = await getDB()
+    const borrowdata = req.body
+    const query = { email: borrowdata.email, bookId: borrowdata.bookId }
+    const alreadyBorrow = await database.collection('borrow').findOne(query)
+
+    if (alreadyBorrow) return res.status(400).send("You Already borrow this book")
+    
+    const result = await database.collection('borrow').insertOne(borrowdata)
+
+    const filter = { _id: new ObjectId(borrowdata.bookId) }
+    const update = { $inc: { quantity: -1 } }
+    await database.collection('books').updateOne(filter, update)
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Get my borrow books
+app.get('/my-borrow-book/:email', verifyToken, async (req, res) => {
+  try {
+    const database = await getDB()
+    const decodedEmail = req?.user?.email
+    const email = req.params.email
+
+    if (decodedEmail !== email) return res.status(401).send({ message: "unauthorized access" })
+    const query = { email: email }
+    const result = await database.collection('borrow').find(query).toArray()
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
+// Return book
+app.delete('/return-book/:id', async (req, res) => {
+  try {
+    const database = await getDB()
+    const borrowId = req.params.id
+    const bookId = req.query.bookId
+    const query = { _id: new ObjectId(borrowId) }
+    const result = await database.collection('borrow').deleteOne(query)
+
+    const filter = { _id: new ObjectId(bookId) }
+    const update = { $inc: { quantity: 1 } }
+    const updateBook = await database.collection('books').updateOne(filter, update)
+
+    res.send({ result, updateBook })
+  } catch (error) {
+    res.status(500).send({ message: error.message })
+  }
+})
+
 app.listen(port, () => console.log(`Server running on port ${port}`))
+
+module.exports = app
