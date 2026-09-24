@@ -10,7 +10,12 @@ const port = process.env.PORT || 5000
 const app = express()
 const cookieParser = require('cookie-parser')
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://diu-library-f6c58.web.app',
+    'https://diu-library-f6c58.firebaseapp.com'
+  ],
   credentials: true,
   optionalSuccessStatus: 200,
 }
